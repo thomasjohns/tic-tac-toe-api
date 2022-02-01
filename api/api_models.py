@@ -1,4 +1,6 @@
 from enum import Enum
+from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -18,3 +20,8 @@ class PlayerKind(str, Enum):
 class CreatePlayer(BaseModel):
     name: str
     kind: PlayerKind
+
+
+class CreateGame(BaseModel):
+    player_one_id: UUID
+    player_two_id: Optional[UUID]

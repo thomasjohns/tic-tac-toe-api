@@ -2,7 +2,7 @@
 
 GET  /games
 GET  /games/{id}
-GET  /games/{id}/pretty
+GET  /games/{id}/board
 GET  /games?player_id={id}
 POST /games
     {
@@ -11,6 +11,7 @@ POST /games
     }
 
 GET  /games/{id}/moves
+GET  /games/{id}/moves/boards
 POST /games/{id}/moves
     {
         player_id: UUID

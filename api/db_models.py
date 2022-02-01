@@ -43,13 +43,26 @@ class Game(DatabaseModel['Game']):
         self,
         player_one_id: UUID,
         player_two_id: Optional[UUID],
-        status: GameStatus,
+        status: Optional[GameStatus] = None,
     ) -> None:
         super().__init__()
         self.player_one_id = player_one_id
         self.player_two_id = \
             player_two_id or Player.get_default_computer_player().id
-        self.status = status
+        self.status = status or GameStatus.IN_PROGRESS
+
+    @classmethod
+    def get_many_by_player(cls, player_id: UUID) -> List['Game']:
+        return [
+            item for item in database
+            if (
+                isinstance(item, Game) and
+                (
+                    player_id == item.player_one_id or
+                    player_id == item.player_two_id
+                )
+            )
+        ]
 
 
 class Move(DatabaseModel['Move']):
@@ -65,6 +78,13 @@ class Move(DatabaseModel['Move']):
         self.player_id = player_id
         self.x = x
         self.y = y
+
+    @classmethod
+    def get_many_by_game(cls, game_id: UUID) -> List['Move']:
+        return [
+            item for item in database
+            if isinstance(item, Move) and item.game_id == game_id
+        ]
 
 
 class Player(DatabaseModel['Player']):

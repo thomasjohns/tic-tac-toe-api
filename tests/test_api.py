@@ -64,3 +64,47 @@ def test_get_player_by_id_404(api_client):
     assert response.json() == {
         'detail': f'Player with id={missing_player_id} not found.',
     }
+
+
+# NOTE: tests become much less exhaustive and more coupled at this point
+
+
+def test_game_crud(api_client):
+    create_player_response = api_client.post(
+        '/players',
+        json={
+            'name': 'Thomas',
+            'kind': 'Human',
+        },
+    )
+    assert create_player_response.status_code == 200
+
+    player_id = create_player_response.json()['id']
+
+    create_game_response = api_client.post(
+        '/games',
+        json={
+            'player_one_id': player_id,
+        },
+    )
+    assert create_game_response.status_code == 200
+
+    game_id = create_game_response.json()['id']
+
+    get_games_by_player_response = api_client.get(
+        f'/games/?player_id={player_id}'
+    )
+    assert get_games_by_player_response.status_code == 200
+    assert len(get_games_by_player_response.json()) == 1
+
+    get_game_board_response = api_client.get(f'/games/{game_id}/board')
+    assert get_game_board_response.status_code == 200
+    assert get_game_board_response.json() == {
+        'board': '''
+.|.|.
+-----
+.|.|.
+-----
+.|.|.
+'''
+    }
