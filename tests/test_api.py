@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from starlette.testclient import TestClient
 
@@ -39,4 +41,26 @@ def test_get_players(api_client):
 
 
 def test_create_and_get_player_by_id(api_client):
-    pass
+    create_response = api_client.post(
+        '/players',
+        json={
+            'name': 'Thomas',
+            'kind': 'Human',
+        },
+    )
+    assert create_response.status_code == 200
+    id_ = create_response.json()['id']
+    get_response = api_client.get(f'/players/{id_}')
+    assert get_response.status_code == 200
+    json = get_response.json()
+    assert json['name'] == 'Thomas'
+    assert json['kind'] == 'Human'
+
+
+def test_get_player_by_id_404(api_client):
+    missing_player_id = uuid4()
+    response = api_client.get(f'/players/{missing_player_id}')
+    assert response.status_code == 404
+    assert response.json() == {
+        'detail': f'Player with id={missing_player_id} not found.',
+    }
