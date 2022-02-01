@@ -100,7 +100,7 @@ def test_game_crud(api_client):
     get_game_board_response = api_client.get(f'/games/{game_id}/board')
     assert get_game_board_response.status_code == 200
     assert get_game_board_response.json() == {
-        'board': '''
+        'board': '''\
 .|.|.
 -----
 .|.|.

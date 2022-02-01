@@ -82,8 +82,8 @@ def _get_board_str_from_moves(moves: List[Move]) -> str:
     ]
     letter = cycle('XO')
     for move in moves:
-        board[move.x, move.y] = next(letter)  # type: ignore
-    board_str = f'''
+        board[move.x][move.y] = next(letter)
+    board_str = f'''\
 {board[0][0]}|{board[0][1]}|{board[0][2]}
 -----
 {board[1][0]}|{board[1][1]}|{board[1][2]}
@@ -155,7 +155,7 @@ def get_move_boards_by_game_id(game_id: UUID) -> APIResponse:
     moves = Move.get_many_by_game(game_id=game_id)
     moves = sorted(moves, key=lambda g: g.created_at)
     board_strs: List[str] = []
-    for i in range(1, len(board_strs)):
+    for i in range(1, len(moves) + 1):
         board_str = _get_board_str_from_moves(moves[:i])
         board_strs.append(board_str)
     return {'boards': board_strs}
@@ -189,6 +189,8 @@ def create_move(game_id: UUID, cm: CreateMove) -> APIResponse:
     move = Move(game_id=game_id, player_id=cm.player_id, x=cm.x, y=cm.y)
     move.save()
 
+    already_moved.add((move.x, move.y))
+
     other_player_id = (
         game.player_two_id if cm.player_id == game.player_one_id
         else game.player_one_id
@@ -199,7 +201,7 @@ def create_move(game_id: UUID, cm: CreateMove) -> APIResponse:
     # FIXME: this should check if there is a winner first
     should_create_computer_move = (
         other_player.kind == PlayerKind.COMPUTER
-        and len(moves) == 8  # note there is now one new move for a total of 9
+        and len(already_moved) < 9
     )
 
     computer_move = None
