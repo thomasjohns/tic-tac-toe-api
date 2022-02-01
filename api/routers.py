@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from api.api_models import CreateGame
 from api.api_models import CreateMove
 from api.api_models import CreatePlayer
+from api.api_models import GameStatus
 from api.api_models import PlayerKind
 from api.db_models import Game
 from api.db_models import Move
@@ -161,6 +162,43 @@ def get_move_boards_by_game_id(game_id: UUID) -> APIResponse:
     return {'boards': board_strs}
 
 
+winning_move_sets = [
+    # horizontals
+    {(0, 0), (0, 1), (0, 2)},
+    {(1, 0), (1, 1), (1, 2)},
+    {(2, 0), (2, 1), (2, 2)},
+
+    # verticals
+    {(0, 0), (1, 0), (2, 0)},
+    {(0, 1), (1, 1), (2, 1)},
+    {(0, 2), (1, 2), (2, 2)},
+
+    # diagonals
+    {(0, 0), (1, 1), (2, 2)},
+    {(2, 2), (1, 1), (0, 0)},
+]
+
+
+def _get_game_status(moves: List[Move], player_one_id: UUID) -> GameStatus:
+    player_one_moves = {
+        (m.x, m.y) for m in moves if m.player_id == player_one_id
+    }
+    player_two_moves = {
+        (m.x, m.y) for m in moves if m.player_id != player_one_id
+    }
+
+    for winning_move_set in winning_move_sets:
+        if winning_move_set.issubset(player_one_moves):
+            return GameStatus.PLAYER_ONE_WON
+        elif winning_move_set.issubset(player_two_moves):
+            return GameStatus.PLAYER_TWO_WON
+
+    if len(moves) == 9:
+        return GameStatus.SCRATCH
+    else:
+        return GameStatus.IN_PROGRESS
+
+
 # TODO: pydantic response_model
 @main_router.post('/games/{game_id}/moves')
 def create_move(game_id: UUID, cm: CreateMove) -> APIResponse:
@@ -179,8 +217,8 @@ def create_move(game_id: UUID, cm: CreateMove) -> APIResponse:
         )
 
     moves = Move.get_many_by_game(game_id=game_id)
-    already_moved = {(move.x, move.y) for move in moves}
-    if (cm.x, cm.y) in already_moved:
+    already_moved_coords = {(move.x, move.y) for move in moves}
+    if (cm.x, cm.y) in already_moved_coords:
         raise HTTPException(
             status_code=422,
             detail=f'Move ({cm.x}, {cm.y}) is already taken.',
@@ -189,7 +227,8 @@ def create_move(game_id: UUID, cm: CreateMove) -> APIResponse:
     move = Move(game_id=game_id, player_id=cm.player_id, x=cm.x, y=cm.y)
     move.save()
 
-    already_moved.add((move.x, move.y))
+    moves.append(move)
+    already_moved_coords.add((move.x, move.y))
 
     other_player_id = (
         game.player_two_id if cm.player_id == game.player_one_id
@@ -198,10 +237,12 @@ def create_move(game_id: UUID, cm: CreateMove) -> APIResponse:
     other_player = Player.get_one(id_=other_player_id)
     assert other_player is not None
 
-    # FIXME: this should check if there is a winner first
+    game_status = _get_game_status(moves + [move], game.player_one_id)
+
     should_create_computer_move = (
         other_player.kind == PlayerKind.COMPUTER
-        and len(already_moved) < 9
+        and len(moves) < 9
+        and game_status == GameStatus.IN_PROGRESS
     )
 
     computer_move = None
@@ -210,7 +251,7 @@ def create_move(game_id: UUID, cm: CreateMove) -> APIResponse:
         created_move = False
         for row in range(3):
             for col in range(3):
-                if not created_move and (row, col) not in already_moved:
+                if not created_move and (row, col) not in already_moved_coords:
                     computer_move = Move(
                         game_id=game_id,
                         player_id=other_player_id,
@@ -218,10 +259,14 @@ def create_move(game_id: UUID, cm: CreateMove) -> APIResponse:
                         y=col,
                     )
                     computer_move.save()
+                    moves.append(computer_move)
                     created_move = True
 
     # FIXME: update game state (calculate if there is a winner)
     response = {'move': move}
     if computer_move is not None:
         response['computer_move'] = computer_move
+        game_status = _get_game_status(moves, game.player_one_id)
+
+    game.status = game_status
     return response

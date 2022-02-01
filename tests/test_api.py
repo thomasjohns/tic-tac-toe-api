@@ -176,3 +176,67 @@ X|.|.
 .|.|.
 ''',
     ]}
+
+    # After this move, the game should be over because player one has a
+    # winning game state. The computer should not make any move after the
+    # game ended.
+
+    # First make sure the game is still in progress before we make the move.
+    get_current_game_state_response = api_client.get(f'/games/{game_id}')
+    assert get_current_game_state_response.status_code == 200
+    assert get_current_game_state_response.json()['status'] == 'InProgress'
+
+    create_final_move_response = api_client.post(
+        f'/games/{game_id}/moves',
+        json={
+            'player_id': player_id,
+            'x': 2,
+            'y': 0,
+        },
+    )
+    assert create_final_move_response.status_code == 200
+
+    game_boards_response = api_client.get(f'/games/{game_id}/moves/boards')
+    assert game_boards_response.status_code == 200
+
+    assert game_boards_response.json() == {'boards': [
+        '''\
+X|.|.
+-----
+.|.|.
+-----
+.|.|.
+''',
+        '''\
+X|O|.
+-----
+.|.|.
+-----
+.|.|.
+''',
+        '''\
+X|O|.
+-----
+X|.|.
+-----
+.|.|.
+''',
+        '''\
+X|O|O
+-----
+X|.|.
+-----
+.|.|.
+''',
+        '''\
+X|O|O
+-----
+X|.|.
+-----
+X|.|.
+''',
+    ]}
+
+    get_final_game_state_response = api_client.get(f'/games/{game_id}')
+    assert get_final_game_state_response.status_code == 200
+    assert get_final_game_state_response.json()['status'] == 'PlayerOneWon'
