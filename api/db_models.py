@@ -1,4 +1,5 @@
 import datetime as dt
+from typing import Any
 from typing import Generic
 from typing import List
 from typing import Optional
@@ -10,7 +11,10 @@ from api.api_models import GameStatus
 from api.api_models import PlayerKind
 
 
-T = TypeVar('T', bound='DatabaseModel')
+# TODO: pydantic-ify these models
+
+
+T = TypeVar('T')
 
 
 class DatabaseModel(Generic[T]):
@@ -22,11 +26,11 @@ class DatabaseModel(Generic[T]):
         database.append(self)
 
     @classmethod
-    def get_many(cls) -> List[T]:
+    def get_many(cls) -> List['DatabaseModel[T]']:
         return [item for item in database if isinstance(item, cls)]
 
     @classmethod
-    def get_one(cls, id_: UUID) -> Optional[T]:
+    def get_one(cls, id_: UUID) -> Optional['DatabaseModel[T]']:
         for item in database:
             if item.id == id_:
                 assert isinstance(item, cls)
@@ -34,7 +38,7 @@ class DatabaseModel(Generic[T]):
         return None
 
 
-class Game(DatabaseModel):
+class Game(DatabaseModel['Game']):
     def __init__(
         self,
         player_one_id: UUID,
@@ -48,7 +52,7 @@ class Game(DatabaseModel):
         self.status = status
 
 
-class Move(DatabaseModel):
+class Move(DatabaseModel['Move']):
     def __init__(
         self,
         game_id: UUID,
@@ -63,7 +67,7 @@ class Move(DatabaseModel):
         self.y = y
 
 
-class Player(DatabaseModel):
+class Player(DatabaseModel['Player']):
     def __init__(self, name: str, kind: PlayerKind) -> None:
         super().__init__()
         self.name = name
@@ -77,6 +81,6 @@ class Player(DatabaseModel):
 
 
 # Initialize database with the computer player
-database: List[DatabaseModel] = [
+database: List[DatabaseModel[Any]] = [  # FIXME fix the Any type here
     Player(name='Computer', kind=PlayerKind.COMPUTER),
 ]
