@@ -1,0 +1,6 @@
+mypy
+flake8
+pytest
+uvicorn
+fastapi
+requests
