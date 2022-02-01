@@ -33,6 +33,7 @@ Game:
     player_one_id: UUID
     player_two_id: UUID
     status: InProgress | PlayerOneWon | PlayerTwoWon | Scratch
+    created_at: Datetime
 
 Move:
     id: UUID
@@ -40,8 +41,10 @@ Move:
     player_id: UUID
     x: Int
     y: Int
+    created_at: Datetime
 
 Player:
     id: UUID
     name: String
     kind: Computer | Human
+    created_at: Datatime
