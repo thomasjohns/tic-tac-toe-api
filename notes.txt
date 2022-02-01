@@ -1,0 +1,47 @@
+# Endpoints
+
+GET  /games
+GET  /games/{id}
+GET  /games/{id}/pretty
+GET  /games?player_id={id}
+POST /games
+    {
+        player_one_id: UUID
+        player_two_id: UUID  # Optional - defaults to Computer
+    }
+
+GET  /games/{id}/moves
+POST /games/{id}/moves
+    {
+        player_id: UUID
+        x: Int
+        y: Int
+    }
+
+POST /players
+    {
+        name: String
+        kind: Human | Computer  # Optional - defaults to Human
+    }
+GET  /players
+GET  /players/{id}
+
+# Models
+
+Game:
+    id: UUID
+    player_one_id: UUID
+    player_two_id: UUID
+    status: InProgress | PlayerOneWon | PlayerTwoWon | Scratch
+
+Move:
+    id: UUID
+    game_id: UUID
+    player_id: UUID
+    x: Int
+    y: Int
+
+Player:
+    id: UUID
+    name: String
+    kind: Computer | Human
