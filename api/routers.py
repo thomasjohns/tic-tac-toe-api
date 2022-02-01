@@ -7,7 +7,9 @@ from fastapi import APIRouter
 from fastapi import HTTPException
 
 from api.api_models import CreateGame
+from api.api_models import CreateMove
 from api.api_models import CreatePlayer
+from api.api_models import PlayerKind
 from api.db_models import Game
 from api.db_models import Move
 from api.db_models import Player
@@ -125,3 +127,99 @@ def create_game(cg: CreateGame) -> APIResponse:
     game = Game(cg.player_one_id, cg.player_two_id)
     game.save()
     return game
+
+
+# TODO: pydantic response_model
+@main_router.get('/games/{game_id}/moves')
+def get_moves_by_game_id(game_id: UUID) -> APIResponse:
+    game = Game.get_one(id_=game_id)
+    if game is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f'Game with id={game_id} not found.',
+        )
+    moves = Move.get_many_by_game(game_id=game_id)
+    # FIXME: fix type ignore
+    return sorted(moves, key=lambda g: g.created_at)  # type: ignore
+
+
+# TODO: pydantic response_model
+@main_router.get('/games/{game_id}/moves/boards')
+def get_move_boards_by_game_id(game_id: UUID) -> APIResponse:
+    game = Game.get_one(id_=game_id)
+    if game is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f'Game with id={game_id} not found.',
+        )
+    moves = Move.get_many_by_game(game_id=game_id)
+    moves = sorted(moves, key=lambda g: g.created_at)
+    board_strs: List[str] = []
+    for i in range(1, len(board_strs)):
+        board_str = _get_board_str_from_moves(moves[:i])
+        board_strs.append(board_str)
+    return {'boards': board_strs}
+
+
+# TODO: pydantic response_model
+@main_router.post('/games/{game_id}/moves')
+def create_move(game_id: UUID, cm: CreateMove) -> APIResponse:
+    game = Game.get_one(id_=game_id)
+    if game is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f'Game with id={game_id} not found.',
+        )
+
+    player = Player.get_one(id_=cm.player_id)
+    if player is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f'Player with id={cm.player_id} not found.',
+        )
+
+    moves = Move.get_many_by_game(game_id=game_id)
+    already_moved = {(move.x, move.y) for move in moves}
+    if (cm.x, cm.y) in already_moved:
+        raise HTTPException(
+            status_code=422,
+            detail=f'Move ({cm.x}, {cm.y}) is already taken.',
+        )
+
+    move = Move(game_id=game_id, player_id=cm.player_id, x=cm.x, y=cm.y)
+    move.save()
+
+    other_player_id = (
+        game.player_two_id if cm.player_id == game.player_one_id
+        else game.player_one_id
+    )
+    other_player = Player.get_one(id_=other_player_id)
+    assert other_player is not None
+
+    # FIXME: this should check if there is a winner first
+    should_create_computer_move = (
+        other_player.kind == PlayerKind.COMPUTER
+        and len(moves) == 8  # note there is now one new move for a total of 9
+    )
+
+    computer_move = None
+    if should_create_computer_move:
+        # The AI currently picks the top-left-most move for ease of testing.
+        created_move = False
+        for row in range(3):
+            for col in range(3):
+                if not created_move and (row, col) not in already_moved:
+                    computer_move = Move(
+                        game_id=game_id,
+                        player_id=other_player_id,
+                        x=row,
+                        y=col,
+                    )
+                    computer_move.save()
+                    created_move = True
+
+    # FIXME: update game state (calculate if there is a winner)
+    response = {'move': move}
+    if computer_move is not None:
+        response['computer_move'] = computer_move
+    return response

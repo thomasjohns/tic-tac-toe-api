@@ -25,3 +25,9 @@ class CreatePlayer(BaseModel):
 class CreateGame(BaseModel):
     player_one_id: UUID
     player_two_id: Optional[UUID]
+
+
+class CreateMove(BaseModel):
+    player_id: UUID
+    x: int
+    y: int

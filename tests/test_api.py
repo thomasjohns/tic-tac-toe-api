@@ -108,3 +108,71 @@ def test_game_crud(api_client):
 .|.|.
 '''
     }
+
+
+def test_move_crud(api_client):
+    create_player_response = api_client.post(
+        '/players',
+        json={
+            'name': 'Thomas',
+            'kind': 'Human',
+        },
+    )
+    assert create_player_response.status_code == 200
+
+    player_id = create_player_response.json()['id']
+
+    create_game_response = api_client.post(
+        '/games',
+        json={
+            'player_one_id': player_id,
+        },
+    )
+    assert create_game_response.status_code == 200
+
+    game_id = create_game_response.json()['id']
+
+    for move in [(0, 0), (1, 0)]:
+        create_move_response = api_client.post(
+            f'/games/{game_id}/moves',
+            json={
+                'player_id': player_id,
+                'x': move[0],
+                'y': move[1],
+            },
+        )
+        assert create_move_response.status_code == 200
+
+    game_boards_response = api_client.get(f'/games/{game_id}/moves/boards')
+    assert game_boards_response.status_code == 200
+
+    assert game_boards_response.json() == {'boards': [
+        '''\
+X|.|.
+-----
+.|.|.
+-----
+.|.|.
+''',
+        '''\
+X|O|.
+-----
+.|.|.
+-----
+.|.|.
+''',
+        '''\
+X|O|.
+-----
+X|.|.
+-----
+.|.|.
+''',
+        '''\
+X|O|O
+-----
+X|.|.
+-----
+.|.|.
+''',
+    ]}
